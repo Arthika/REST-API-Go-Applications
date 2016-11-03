@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"time"
 	"os"
+	"log"
 )
 
 type Configuration struct {
@@ -40,10 +41,16 @@ func main() {
 
 	// wrapper authentication
 	wrapper.New(conf.Domain, conf.User, conf.Password, conf.Url_streaming, conf.Url_polling, conf.Url_challenge, conf.Url_token, conf.Authentication_port, conf.Request_port)
-	wrapper.DoAuthentication()
+	err = wrapper.DoAuthentication()
+	if err != nil {
+		log.Fatal("Error in wrapper authentication:", err)
+	}
 
 	// get accounts
-	var accs []wrapper.AccountTick = wrapper.GetAccount()
+	accs, err := wrapper.GetAccount()
+	if err != nil {
+		log.Fatal("Error getting accounts:", err)
+	}
 	fmt.Println("Accounts:") 
 	for i := 0; i < len(accs); i++ {
 		var acc wrapper.AccountTick = accs[i]
@@ -51,7 +58,10 @@ func main() {
 	}
 
 	// get tinterfaces
-	var tis []wrapper.TinterfaceTick = wrapper.GetInterface()
+	tis, err := wrapper.GetInterface()
+	if err != nil {
+		log.Fatal("Error getting interfaces:", err)
+	}
 	fmt.Println("Tinterfaces:")
 	for i := 0; i < len(tis); i++ {
 		var ti wrapper.TinterfaceTick = tis[i]
@@ -65,7 +75,10 @@ func main() {
 
 	// get prices (Polling)
 	var bidprice float64
-	var prices []wrapper.PriceTick = wrapper.GetPricePolling(secs, nil, wrapper.GRANULARITY_FAB, 5)
+	prices, err := wrapper.GetPricePolling(secs, nil, wrapper.GRANULARITY_FAB, 5)
+	if err != nil {
+		log.Fatal("Error getting prices:", err)
+	}
 	fmt.Println("PricePolling:")
 	for i := 0; i < len(prices); i++ {
 		var price wrapper.PriceTick = prices[i]
@@ -105,7 +118,10 @@ func main() {
 
 
 	// get positions (Polling)
-	var position wrapper.PositionTick = wrapper.GetPositionPolling(nil, nil, nil)
+	position, err := wrapper.GetPositionPolling(nil, nil, nil)
+	if err != nil {
+		log.Fatal("Error getting positions:", err)
+	}
 	fmt.Println("PositionPolling:")
 	var accounting wrapper.AccountingTick = position.Accounting
 	fmt.Println("PL: " + strconv.FormatFloat(accounting.StrategyPL, 'f', 6, 64) + " - TotalEquity: " + strconv.FormatFloat(accounting.Totalequity, 'f', 6, 64) + " - UsedMargin: " + strconv.FormatFloat(accounting.Usedmargin, 'f', 6, 64) + " - FreeMargin: " + strconv.FormatFloat(accounting.Freemargin, 'f', 6, 64));
@@ -146,7 +162,10 @@ func main() {
 	wrapper.GetPositionStreamingEnd(idPos1)
 
 	// get orders (Polling)
-	var orders []wrapper.OrderTick = wrapper.GetOrderPolling(nil, nil, nil)
+	orders, err := wrapper.GetOrderPolling(nil, nil, nil)
+	if err != nil {
+		log.Fatal("Error getting orders:", err)
+	}
 	fmt.Println("OrderPolling:")
 	for i := 0; i < len(orders); i++ {
 		var order wrapper.OrderTick = orders[i]
@@ -183,10 +202,13 @@ func main() {
 	order2.Quantity = 1000000
 	order2.Side = wrapper.SIDE_SELL
 	order2.Type = wrapper.TYPE_MARKET
-	order2.Timeinforce = wrapper.VALIDITY_GOODTILLCANCEL
+	order2.Timeinforce = wrapper.VALIDITY_FILLORKILL
 	var setorders []wrapper.Order = []wrapper.Order{order1, order2}
 	//fmt.Println(setorders)
-	var setorderresponse wrapper.SetOrderResponse2 = wrapper.SetOrder(setorders)
+	setorderresponse, err := wrapper.SetOrder(setorders)
+	if err != nil {
+		log.Fatal("Error setting orders:", err)
+	}
 	fmt.Println("Result: " + strconv.Itoa(setorderresponse.Result) + " - Message: " + setorderresponse.Message)
 	for i := 0; i < len(setorderresponse.Order); i++ {
 		var order wrapper.Order = setorderresponse.Order[i]
@@ -196,7 +218,10 @@ func main() {
 	time.Sleep(2000 * time.Millisecond)
 
 	// get pending orders (Polling), modify the first one and then cancel it (changes appear in order streaming)
-	var pendingorders []wrapper.OrderTick = wrapper.GetOrderPolling([]string{sec}, []string{ti}, []string{wrapper.ORDERTYPE_PENDING})
+	pendingorders, err := wrapper.GetOrderPolling([]string{sec}, []string{ti}, []string{wrapper.ORDERTYPE_PENDING})
+	if err != nil {
+		log.Fatal("Error getting pending orders:", err)
+	}
 	if (len(pendingorders)>0){
 
 		// getting first pending order
@@ -208,7 +233,10 @@ func main() {
 		modifyorder1.Price = pendingorder.Limitprice
 		modifyorder1.Quantity = pendingorder.Quantity * 2
 		var modifyorders []wrapper.ModOrder = []wrapper.ModOrder{modifyorder1}
-		var modifyorderresponse wrapper.ModifyOrderResponse2 = wrapper.ModifyOrder(modifyorders)
+		modifyorderresponse, err := wrapper.ModifyOrder(modifyorders)
+		if err != nil {
+			log.Fatal("Error modifying orders:", err)
+		}
 		fmt.Println("Message: " + modifyorderresponse.Message)
 		for i := 0; i < len(modifyorderresponse.Order); i++ {
 			var modifyordertick wrapper.ModifyOrderTick = modifyorderresponse.Order[i]
@@ -219,7 +247,10 @@ func main() {
 
 		// cancel order
 		var cancelorders []string = []string{pendingorder.Fixid}
-		var cancelorderresponse wrapper.CancelOrderResponse2 = wrapper.CancelOrder(cancelorders)
+		cancelorderresponse, err := wrapper.CancelOrder(cancelorders)
+		if err != nil {
+			log.Fatal("Error canceling orders:", err)
+		}
 		fmt.Println("Message: " + cancelorderresponse.Message)
 		for i := 0; i < len(cancelorderresponse.Order); i++ {
 			var cancelordertick wrapper.CancelOrderTick = cancelorderresponse.Order[i]
