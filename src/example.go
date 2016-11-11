@@ -30,6 +30,7 @@ type Configuration struct {
 func main() {
 
 	// Settings
+	var ssl bool = true
 	file, _ := os.Open("conf.json")
 	decoder := json.NewDecoder(file)
 	conf := Configuration{}
@@ -40,7 +41,11 @@ func main() {
 	fmt.Println(conf)
 
 	// wrapper authentication
-	wrapper.New(conf.Domain, conf.User, conf.Password, conf.Url_streaming, conf.Url_polling, conf.Url_challenge, conf.Url_token, conf.Authentication_port, conf.Request_port)
+	if ssl{
+		wrapper.New(conf.Ssl_domain, conf.User, conf.Password, conf.Url_streaming, conf.Url_polling, conf.Url_challenge, conf.Url_token, conf.Ssl_authentication_port, conf.Ssl_request_port, ssl, conf.Ssl_cert)
+	}else{
+		wrapper.New(conf.Domain, conf.User, conf.Password, conf.Url_streaming, conf.Url_polling, conf.Url_challenge, conf.Url_token, conf.Authentication_port, conf.Request_port, ssl, conf.Ssl_cert)
+	}
 	err = wrapper.DoAuthentication()
 	if err != nil {
 		log.Fatal("Error in wrapper authentication:", err)
