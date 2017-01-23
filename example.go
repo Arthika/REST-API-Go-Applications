@@ -11,26 +11,29 @@ import (
 )
 
 type Configuration struct {
-	Domain string
-	User string
-	Password string
-	Authentication_port int
-	Request_port int
-	Url_streaming string
-	Url_polling string
-	Url_challenge string
-	Url_token string
-	Interval int
-	Ssl_domain string
+	Is_ssl                  bool
+	Domain                  string
+	User                    string
+	Password                string
+	Url_streaming           string
+	Url_polling             string
+	Url_challenge           string
+	Url_token               string
+	Authentication_port     int
+	Request_port            int
+	Interval                int
+	Ssl_domain              string
 	Ssl_authentication_port int
-	Ssl_request_port int
-	Ssl_cert string
+	Ssl_request_port        int
+	Ssl_cert                string
+	Insecure_skip_verify    bool
 }
 
 func main() {
 
 	// Settings
-	var ssl bool = true
+	var id1 chan bool
+	var id2 chan bool
 	file, _ := os.Open("conf.json")
 	decoder := json.NewDecoder(file)
 	conf := Configuration{}
@@ -41,10 +44,12 @@ func main() {
 	fmt.Println(conf)
 
 	// wrapper authentication
-	if ssl{
-		wrapper.New(conf.Ssl_domain, conf.User, conf.Password, conf.Url_streaming, conf.Url_polling, conf.Url_challenge, conf.Url_token, conf.Ssl_authentication_port, conf.Ssl_request_port, ssl, conf.Ssl_cert)
-	}else{
-		wrapper.New(conf.Domain, conf.User, conf.Password, conf.Url_streaming, conf.Url_polling, conf.Url_challenge, conf.Url_token, conf.Authentication_port, conf.Request_port, ssl, conf.Ssl_cert)
+
+
+	if conf.Is_ssl {
+		wrapper.New(conf.Ssl_domain, conf.User, conf.Password, conf.Url_streaming, conf.Url_polling, conf.Url_challenge, conf.Url_token, conf.Ssl_authentication_port, conf.Ssl_request_port, conf.Is_ssl, conf.Ssl_cert, conf.Insecure_skip_verify)
+	} else {
+		wrapper.New(conf.Domain, conf.User, conf.Password, conf.Url_streaming, conf.Url_polling, conf.Url_challenge, conf.Url_token, conf.Authentication_port, conf.Request_port, conf.Is_ssl, conf.Ssl_cert, conf.Insecure_skip_verify)
 	}
 	err = wrapper.DoAuthentication()
 	if err != nil {
@@ -104,12 +109,12 @@ func main() {
 	}
 
 	// open first price streaming
-	id1 := wrapper.GetPriceStreamingBegin(secs, nil, wrapper.GRANULARITY_FAB, 5, conf.Interval, processPrices)
+	id1, err = wrapper.GetPriceStreamingBegin(secs, nil, wrapper.GRANULARITY_FAB, 5, conf.Interval, processPrices)
 
 	time.Sleep(2000 * time.Millisecond)
 
 	// open second price streaming
-	id2 := wrapper.GetPriceStreamingBegin(secs2, nil, wrapper.GRANULARITY_TOB, 1, conf.Interval, processPrices)
+	id2, err = wrapper.GetPriceStreamingBegin(secs2, nil, wrapper.GRANULARITY_TOB, 1, conf.Interval, processPrices)
 
 	time.Sleep(2000 * time.Millisecond)
 

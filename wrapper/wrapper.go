@@ -4,14 +4,14 @@ import (
 	"bufio"
 	"bytes"
 	"crypto/sha1"
+	"crypto/tls"
+	"crypto/x509"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"net/http"
 	"strconv"
-	"crypto/tls"
-	"crypto/x509"
 )
 
 const SIDE_BUY string = "buy"
@@ -47,6 +47,7 @@ var token string
 var ssl bool
 var ssl_cert string
 var transport *http.Transport
+var insecureSkipVerify bool
 
 type CallBackPriceFunc func(prices []PriceTick)
 
@@ -363,7 +364,7 @@ type CancelOrderTick struct {
 	Result string `json:"result"`
 }
 
-func New(d string, u string, p string, u_streaming string, u_polling string, u_challenge string, u_token string, a_port int, r_port int, is_ssl bool, sslcert string) {
+func New(d string, u string, p string, u_streaming string, u_polling string, u_challenge string, u_token string, a_port int, r_port int, is_ssl bool, sslcert string, ver bool) {
 	domain = d
 	user = u
 	password = p
@@ -375,6 +376,7 @@ func New(d string, u string, p string, u_streaming string, u_polling string, u_c
 	request_port = r_port
 	ssl = is_ssl
 	ssl_cert = sslcert
+	insecureSkipVerify = ver
 }
 
 func DoAuthentication() (err error) {
@@ -403,21 +405,25 @@ func getSSlCert() (err error) {
 	// Load CA cert
 	//caCert, err := ioutil.ReadFile("gsalphasha2g2r1.crt")
 	client := &http.Client{}
-	res, err := client.Get(ssl_cert)
-	if err != nil {
+	res, thiserr := client.Get(ssl_cert)
+	if thiserr != nil {
+		err = thiserr
 		return
 	}
-	caCert, err := ioutil.ReadAll(res.Body)
-	if err != nil {
+	caCert, thiserr := ioutil.ReadAll(res.Body)
+	if thiserr != nil {
+		err = thiserr
 		return
 	}
 	caCertPool := x509.NewCertPool()
 	caCertPool.AppendCertsFromPEM(caCert)
 	// Setup HTTPS client
 	tlsConfig := &tls.Config{
-		RootCAs:      caCertPool,
+		RootCAs:            caCertPool,
+		InsecureSkipVerify: insecureSkipVerify,
 	}
 	tlsConfig.BuildNameToCertificate()
+	// Patched by Julio
 	transport = &http.Transport{TLSClientConfig: tlsConfig}
 	return
 }
@@ -431,8 +437,9 @@ func getChallenge() (err error) {
 	reqJ := GetAuthorizationChallengeRequest{
 		GetAuthorizationChallenge: u,
 	}
-	bytes, err := polling(reqJ, url)
-	if err != nil {
+	bytes, thiserr := polling(reqJ, url)
+	if thiserr != nil {
+		err = thiserr
 		return
 	}
 	var cresponse GetAuthorizationChallengeResponse
@@ -446,8 +453,9 @@ func getChallenge() (err error) {
 }
 
 func getChallengeResponse() (err error) {
-	a, err := hex.DecodeString(challenge)
-	if err != nil {
+	a, thiserr := hex.DecodeString(challenge)
+	if thiserr != nil {
+		err = thiserr
 		return
 	}
 	b := []byte(password)
@@ -470,8 +478,9 @@ func getToken() (err error) {
 	reqJ := GetAuthorizationTokenRequest{
 		GetAuthorizationToken: u,
 	}
-	bytes, err := polling(reqJ, url)
-	if err != nil {
+	bytes, thiserr := polling(reqJ, url)
+	if thiserr != nil {
+		err = thiserr
 		return
 	}
 	var cresponse GetAuthorizationTokenResponse
@@ -494,8 +503,9 @@ func GetAccount() (acs []AccountTick, err error) {
 	reqJ := GetAccountRequest{
 		GetAccount: u,
 	}
-	bytes, err := polling(reqJ, url)
-	if err != nil {
+	bytes, thiserr := polling(reqJ, url)
+	if thiserr != nil {
+		err = thiserr
 		return
 	}
 	var cresponse GetAccountResponse
@@ -517,8 +527,9 @@ func GetInterface() (tis []TinterfaceTick, err error) {
 	reqJ := GetInterfaceRequest{
 		GetInterface: u,
 	}
-	bytes, err := polling(reqJ, url)
-	if err != nil {
+	bytes, thiserr := polling(reqJ, url)
+	if thiserr != nil {
+		err = thiserr
 		return
 	}
 	var cresponse GetInterfaceResponse
@@ -545,8 +556,9 @@ func GetPricePolling(secs []string, tis []string, gran string, lev int) (prices 
 	reqJ := GetPriceRequest{
 		GetPrice: u,
 	}
-	bytes, err := polling(reqJ, url)
-	if err != nil {
+	bytes, thiserr := polling(reqJ, url)
+	if thiserr != nil {
+		err = thiserr
 		return
 	}
 	var cresponse GetPriceResponse
@@ -572,8 +584,9 @@ func GetPositionPolling(asts []string, secs []string, accs []string) (position P
 	reqJ := GetPositionRequest{
 		GetPosition: u,
 	}
-	bytes, err := polling(reqJ, url)
-	if err != nil {
+	bytes, thiserr := polling(reqJ, url)
+	if thiserr != nil {
+		err = thiserr
 		return
 	}
 	var cresponse GetPositionResponse
@@ -599,8 +612,9 @@ func GetOrderPolling(secs []string, tis []string, tys []string) (orders []OrderT
 	reqJ := GetOrderRequest{
 		GetOrder: u,
 	}
-	bytes, err := polling(reqJ, url)
-	if err != nil {
+	bytes, thiserr := polling(reqJ, url)
+	if thiserr != nil {
+		err = thiserr
 		return
 	}
 	var cresponse GetOrderResponse
@@ -623,8 +637,9 @@ func SetOrder(orders []Order) (ordresp SetOrderResponse2, err error) {
 	reqJ := SetOrderRequest{
 		SetOrder: u,
 	}
-	bytes, err := polling(reqJ, url)
-	if err != nil {
+	bytes, thiserr := polling(reqJ, url)
+	if thiserr != nil {
+		err = thiserr
 		return
 	}
 	var cresponse SetOrderResponse
@@ -647,8 +662,9 @@ func ModifyOrder(modifyorders []ModOrder) (modresp ModifyOrderResponse2, err err
 	reqJ := ModifyOrderRequest{
 		ModifyOrder: u,
 	}
-	bytes, err := polling(reqJ, url)
-	if err != nil {
+	bytes, thiserr := polling(reqJ, url)
+	if thiserr != nil {
+		err = thiserr
 		return
 	}
 	var cresponse ModifyOrderResponse
@@ -671,8 +687,9 @@ func CancelOrder(cancelorders []string) (canresp CancelOrderResponse2, err error
 	reqJ := CancelOrderRequest{
 		CancelOrder: u,
 	}
-	bytes, err := polling(reqJ, url)
-	if err != nil {
+	bytes, thiserr := polling(reqJ, url)
+	if thiserr != nil {
+		err = thiserr
 		return
 	}
 	var cresponse CancelOrderResponse
@@ -699,8 +716,9 @@ func GetPriceStreaming(secs []string, tis []string, gran string, lev int, inter 
 	reqJ := GetPriceRequest{
 		GetPrice: u,
 	}
-	reader, err := streaming(reqJ, url)
-	if err != nil {
+	reader, thiserr := streaming(reqJ, url)
+	if thiserr != nil {
+		err = thiserr
 		return
 	}
 	for {
@@ -709,8 +727,9 @@ func GetPriceStreaming(secs []string, tis []string, gran string, lev int, inter 
 			fmt.Println("PriceStreaming STOPPED")
 			return
 		default:
-			line, err := reader.ReadBytes('\n')
-			if err != nil {
+			line, thiserr := reader.ReadBytes('\n')
+			if thiserr != nil {
+				err = thiserr
 				return err
 			}
 			//fmt.Println(string(line))
@@ -727,10 +746,12 @@ func GetPriceStreaming(secs []string, tis []string, gran string, lev int, inter 
 	}
 }
 
-func GetPriceStreamingBegin(secs []string, tis []string, gran string, lev int, inter int, callback CallBackPriceFunc) chan bool {
-	quit := make(chan bool)
-	go GetPriceStreaming(secs, tis, gran, lev, inter, callback, quit)
-	return quit
+func GetPriceStreamingBegin(secs []string, tis []string, gran string, lev int, inter int, callback CallBackPriceFunc) (quit chan bool, err error) {
+	quit = make(chan bool)
+	go func() {
+		err = GetPriceStreaming(secs, tis, gran, lev, inter, callback, quit)
+	}()
+	return
 }
 
 func GetPriceStreamingEnd(quit chan bool) {
@@ -751,8 +772,9 @@ func GetPositionStreaming(asts []string, secs []string, accs []string, inter int
 	reqJ := GetPositionRequest{
 		GetPosition: u,
 	}
-	reader, err := streaming(reqJ, url)
-	if err != nil {
+	reader, thiserr := streaming(reqJ, url)
+	if thiserr != nil {
+		err = thiserr
 		return
 	}
 	for {
@@ -761,9 +783,10 @@ func GetPositionStreaming(asts []string, secs []string, accs []string, inter int
 			fmt.Println("PositionStreaming STOPPED")
 			return
 		default:
-			line, err := reader.ReadBytes('\n')
-			if err != nil {
-				return err
+			line, thiserr := reader.ReadBytes('\n')
+			if thiserr != nil {
+				err = thiserr
+				return
 			}
 			//fmt.Println(string(line))
 			bytes := []byte(line)
@@ -803,8 +826,9 @@ func GetOrderStreaming(secs []string, tis []string, tys []string, inter int, cal
 	reqJ := GetOrderRequest{
 		GetOrder: u,
 	}
-	reader, err := streaming(reqJ, url)
-	if err != nil {
+	reader, thiserr := streaming(reqJ, url)
+	if thiserr != nil {
+		err = thiserr
 		return
 	}
 	for {
@@ -813,9 +837,10 @@ func GetOrderStreaming(secs []string, tis []string, tys []string, inter int, cal
 			fmt.Println("OrderStreaming STOPPED")
 			return
 		default:
-			line, err := reader.ReadBytes('\n')
-			if err != nil {
-				return err
+			line, thiserr := reader.ReadBytes('\n')
+			if thiserr != nil {
+				err = thiserr
+				return
 			}
 			//fmt.Println(string(line))
 			bytes := []byte(line)
@@ -841,11 +866,16 @@ func GetOrderStreamingEnd(quit chan bool) {
 	quit <- true
 }
 
-func polling(reqJ interface{}, url string) (bytesres []byte, err error){
-	resp, err := doRequest(reqJ, url)	
+func polling(reqJ interface{}, url string) (bytesres []byte, err error) {
+	resp, thiserr := doRequest(reqJ, url)
+	if thiserr != nil {
+		err = thiserr
+		return
+	}
 	defer resp.Body.Close()
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
+	body, thiserr := ioutil.ReadAll(resp.Body)
+	if thiserr != nil {
+		err = thiserr
 		return
 	}
 	text := string(body)
@@ -854,20 +884,26 @@ func polling(reqJ interface{}, url string) (bytesres []byte, err error){
 	return
 }
 
-func streaming(reqJ interface{}, url string) (read *bufio.Reader, err error){
-	resp, err := doRequest(reqJ, url)
+func streaming(reqJ interface{}, url string) (read *bufio.Reader, err error) {
+	resp, thiserr := doRequest(reqJ, url)
+	if thiserr != nil {
+		err = thiserr
+		return
+	}
 	read = bufio.NewReader(resp.Body)
 	return
 }
 
-func doRequest(reqJ interface{}, url string) (resp *http.Response, err error){
-	reqM, err := json.Marshal(reqJ)
-	if err != nil {
+func doRequest(reqJ interface{}, url string) (resp *http.Response, err error) {
+	reqM, thiserr := json.Marshal(reqJ)
+	if thiserr != nil {
+		err = thiserr
 		return
 	}
 	//fmt.Println(string(reqM))
-	req, err := http.NewRequest("POST", url, bytes.NewBuffer(reqM))
-	if err != nil {
+	req, thiserr := http.NewRequest("POST", url, bytes.NewBuffer(reqM))
+	if thiserr != nil {
+		err = thiserr
 		return
 	}
 	client := &http.Client{}
