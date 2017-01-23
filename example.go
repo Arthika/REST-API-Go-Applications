@@ -3,7 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"./wrapper"
+	"github.com/Arthika/REST-API-Go-Applications/wrapper"
 	"strconv"
 	"time"
 	"os"
