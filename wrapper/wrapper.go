@@ -8,10 +8,12 @@ import (
 	"crypto/x509"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
 	"strconv"
+	"time"
 )
 
 const SIDE_BUY string = "buy"
@@ -31,6 +33,8 @@ const ORDERTYPE_INDETERMINATED string = "indetermined"
 const ORDERTYPE_EXECUTED string = "executed"
 const ORDERTYPE_CANCELED string = "canceled"
 const ORDERTYPE_REJECTED string = "rejected"
+
+const STREAMING_TIMEOUT int = 5
 
 var domain string
 var user string
@@ -727,10 +731,11 @@ func GetPriceStreaming(secs []string, tis []string, gran string, lev int, inter 
 			fmt.Println("PriceStreaming STOPPED")
 			return
 		default:
-			line, thiserr := reader.ReadBytes('\n')
+			line, thiserr := readline(reader)
 			if thiserr != nil {
-				err = thiserr
-				return err
+				//err = thiserr
+				//return err
+				continue
 			}
 			//fmt.Println(string(line))
 			bytes := []byte(line)
@@ -783,10 +788,11 @@ func GetPositionStreaming(asts []string, secs []string, accs []string, inter int
 			fmt.Println("PositionStreaming STOPPED")
 			return
 		default:
-			line, thiserr := reader.ReadBytes('\n')
+			line, thiserr := readline(reader)
 			if thiserr != nil {
-				err = thiserr
-				return
+				//err = thiserr
+				//return err
+				continue
 			}
 			//fmt.Println(string(line))
 			bytes := []byte(line)
@@ -837,10 +843,11 @@ func GetOrderStreaming(secs []string, tis []string, tys []string, inter int, cal
 			fmt.Println("OrderStreaming STOPPED")
 			return
 		default:
-			line, thiserr := reader.ReadBytes('\n')
+			line, thiserr := readline(reader)
 			if thiserr != nil {
-				err = thiserr
-				return
+				//err = thiserr
+				//return err
+				continue
 			}
 			//fmt.Println(string(line))
 			bytes := []byte(line)
@@ -892,6 +899,22 @@ func streaming(reqJ interface{}, url string) (read *bufio.Reader, err error) {
 	}
 	read = bufio.NewReader(resp.Body)
 	return
+}
+
+func readline(reader *bufio.Reader) ([]byte, error) {
+	var line []byte;
+	var thiserr error;
+	c1 := make(chan string, 1)
+    go func() {
+        line, thiserr = reader.ReadBytes('\n')
+        c1 <- "finish"
+    }()
+    select {
+    	case <-c1:
+        	return line, thiserr
+    	case <-time.After(time.Second * time.Duration(STREAMING_TIMEOUT)):
+        	return nil, errors.New("TIMEOUT")
+    }
 }
 
 func doRequest(reqJ interface{}, url string) (resp *http.Response, err error) {
